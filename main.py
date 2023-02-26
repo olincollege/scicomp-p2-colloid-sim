@@ -2,11 +2,13 @@ from colloid_simulation import Simulation
 
 # define simulation parameters
 config = {
-    "width": 256,
-    "height": 256,
-    "num_particles": 256,
-    "timestep": 1.0,
-    "brownian_amplitude": .1
+    "size": 50,
+    "num_particles": 10,
+    "particle_radius": 1.,
+    "particle_distribution": "random",
+    "timestep": .1,
+    "hydrodynamic_drag": .9,
+    "brownian_amplitude": .4
 }
 
 # create and run simulation
