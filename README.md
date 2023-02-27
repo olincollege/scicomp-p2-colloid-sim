@@ -12,11 +12,15 @@ In `main.py`, you'll find a few different parameters defined in the `config` obj
 ```python
 # define simulation parameters
 config = {
-    "width": 256,
-    "height": 256,
-    "num_particles": 256,
-    "timestep": 1.0,
-    "brownian_amplitude": .1
+    "size": 50,
+    "num_particles": 50,
+    "particle_radius": 1.,
+    "particle_distribution": "random",
+    "hydrodynamic_drag": .9, # 1.0 is no drag
+    "brownian_amplitude": .4,
+    "timestep": .1,
+    "collision_check_mode": 'bounding_boxes',  # or spatial_distance
+    "show_grid": True
 }
 ```
 
