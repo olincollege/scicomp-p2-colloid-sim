@@ -2,7 +2,7 @@ from collections import defaultdict
 from itertools import combinations
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.spatial.distance import cdist
+from scipy.spatial.distance import pdist, squareform
 
 
 class Simulation:
@@ -67,18 +67,6 @@ class Simulation:
 
     def update_particles(self) -> None:
         """Updates particle positions"""
-        # compute particle velocities
-        d_vel_brownian = self.generate_brownian_velocity(
-            self.brownian_amplitude)
-
-        d_vel = d_vel_brownian
-        d_vel = np.pad(d_vel, ((0, 0), (2, 3)), mode='constant',
-                       constant_values=(0, 0))
-
-        # update particle velocities
-        self.particles = self.particles + d_vel
-        self.particles[:, 2:4] *= self.hydrodynamic_drag
-
         # compute new particle positions
         vel = self.particles[:, 2:4]
         d_pos = vel * self.timestep
@@ -87,6 +75,16 @@ class Simulation:
 
         # update particle positions
         self.particles = self.particles + d_pos
+
+    def apply_brownian_velocity(self) -> None:
+        """Applies brownain velocity component to particles"""
+
+        self.particles[:, 2:4] += self.generate_brownian_velocity(
+            self.brownian_amplitude)
+
+    def apply_hydrodynamic_drag(self) -> None:
+        """Reduces particle velocity by a set multiplier"""
+        self.particles[:, 2:4] *= self.hydrodynamic_drag
 
     def run(self) -> None:
         """Run and plot simulation"""
@@ -110,6 +108,8 @@ class Simulation:
         # continually loop
         while True:
             ### POSITION CALCULATION ###
+            self.apply_hydrodynamic_drag()
+            self.apply_brownian_velocity()
 
             # update particles based on kinematics alone
             self.update_particles()
@@ -182,22 +182,41 @@ class Simulation:
                 self.particles[all_colliding_particle_indices, 6] = 1
 
             elif self.collision_check_mode == "spatial_distance":
+                # calculate pairwise distances with no repeats
                 particle_positions = self.particles[:, 0:2]
-                particle_distances = cdist(
-                    particle_positions, particle_positions)
+                particle_distances = pdist(
+                    particle_positions)
+
+                # convert to square form matrix for ease of indexing pairs
+                particle_distances = squareform(particle_distances)
+
                 # exclude particles distances from themselves (zero) by setting their own distance to greater than the collision threshold
                 particle_distances += np.identity(self.num_particles) * \
-                    2 * self.particle_radius
-                particle_bitmask = particle_distances < 2 * self.particle_radius
+                    (2 * self.particle_radius + 1)
+
+                # check which particles are overlapping
+                particle_bitmask = particle_distances <= (
+                    2 * self.particle_radius)
+
+                # TODO: set the diagonal half of the matrix false here
+
+                # generate pairs based on truthy pairs of values
                 particles_indices_pairs_to_check = np.transpose(
                     np.nonzero(particle_bitmask))
+
+                # TODO: instead of this, only use one diagonal half of matrix to avoid duplicate checks
+                particles_indices_pairs_to_check = [
+                    tuple(sorted(pair)) for pair in particles_indices_pairs_to_check]
+                particles_indices_pairs_to_check = list(set(
+                    particles_indices_pairs_to_check))
 
                 # generate list of all potentially colliding particles
                 all_colliding_particle_indices = [
                     i for sublist in particles_indices_pairs_to_check for i in sublist]
                 all_colliding_particle_indices = list(
                     set(all_colliding_particle_indices))
-                # set flag if particles might be colliding
+
+                # set flag if particles might be colliding for visualization
                 self.particles[all_colliding_particle_indices, 6] = 1
 
                 # compute collision for sets of particles that are close enough to have them
