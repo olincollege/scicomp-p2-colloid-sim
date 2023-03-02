@@ -122,7 +122,8 @@ class Simulation:
 
     def apply_hydrodynamic_drag(self) -> None:
         """Reduces particle velocity by a set multiplier"""
-        self.particles[:, 2:4] *= self.hydrodynamic_drag
+        self.particles[:,
+                       2:4] *= np.clip(1 - self.hydrodynamic_drag, 0., 1.)
 
     def run(self) -> None:
         """Run and plot simulation"""

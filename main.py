@@ -6,7 +6,7 @@ config = {
     "particle_concentration": 2.5,
     "particle_radius": 1.,
     "particle_mass": 1.,
-    "hydrodynamic_drag": .9,
+    "hydrodynamic_drag": .8,
     "brownian_amplitude": .4,
     "timestep": .1,
     "collision_check_mode": 'spatial_distance',  # or "bounding_boxes"
