@@ -208,6 +208,22 @@ class Simulation:
                     # update particle velocities
                     self.particles[index_pair[0], 2:4] = vel_1_new
                     self.particles[index_pair[1], 2:4] = vel_2_new
+
+                    # offset particle positions so they're not overlapping in the next timestep
+                    # get distance required to unoverlap
+                    offset_dist = abs(np.linalg.norm(pos_1 - pos_2) -
+                                      2 * self.particle_radius)
+
+                    # compute direction in which to separate particles
+                    direction = pos_1 - pos_2
+
+                    # generate amount to offset particle positions by
+                    pos_offset_1 = direction * offset_dist / 2
+                    pos_offset_2 = direction * -offset_dist / 2
+
+                    # add particle positions
+                    self.particles[index_pair[0], 0:2] += pos_offset_1
+                    self.particles[index_pair[1], 0:2] += pos_offset_2
             # TODO: this currently only checks if particle centers are in the same grid
             # square and misses many intersections when they are not.
             elif self.collision_check_mode == "bounding_boxes":
