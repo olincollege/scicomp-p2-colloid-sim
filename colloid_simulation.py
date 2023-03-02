@@ -308,7 +308,7 @@ class Simulation:
             marker_radius = self.ax.transData.transform(
                 [self.particle_radius, 0])[0] - self.ax.transData.transform([0, 0])[0]
             # this calculation approximates the
-            marker_size = .42 * marker_radius**2
+            marker_size = .5 * marker_radius**2
 
             # set particle color if it's being checked for collisions
             if self.show_collisions:
@@ -318,7 +318,8 @@ class Simulation:
                 particle_color = 'b'
 
             # plot particles
-            self.ax.scatter(x, y, marker_size, color=particle_color, alpha=.25)
+            self.ax.scatter(x, y, marker_size, color=particle_color,
+                            alpha=.25, edgecolors='none')
 
             # plot binned particles
             if self.collision_check_mode == "bounding_boxes":
@@ -328,13 +329,13 @@ class Simulation:
             # compute and show FPS
             frame_time_end = time()
             fps = 1 / (frame_time_end - frame_time_start)
-            text_fps = f'FPS: {fps:.1f}'
-            text_bbox = dict(facecolor='white', edgecolor="white")
-            self.fig.text(.12, .025, text_fps, fontsize=10, bbox=text_bbox)
+            text_fps_string = f'FPS: {fps:.1f}'
+            text_fps = self.fig.text(.12, .025, text_fps_string, fontsize=10)
 
             # draw on canvas
             self.fig.canvas.draw()
             self.fig.canvas.flush_events()
 
-            # restart fps timer
+            # reset fps timer
             frame_time_start = time()
+            text_fps.remove()
