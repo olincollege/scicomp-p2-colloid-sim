@@ -51,26 +51,6 @@ class Simulation:
             self.particles = np.ndarray(
                 shape=(1, new_particle_data.shape[0]), buffer=new_particle_data)
 
-    def create_2_rows_of_coords(self, x, y, width, spacing) -> np.ndarray:
-        """
-        Generate 2 rows of coordinates offset hexagonally
-
-        Returns a 2D numpy array of coordinates of two rows of particles
-        hexagonally offset bounded by a set width
-        """
-        coords = []
-        current_x_coord = x
-        while current_x_coord <= width + x:
-            # first row
-            coords.append((current_x_coord, y))
-            # second row
-            # TODO: ensure second offset particles don't exceed width.
-            # Could refactor to generate spaced coordinate points in a single function
-            coords.append((current_x_coord + spacing / 2,
-                           y + np.sqrt(3) * spacing / 2))
-            current_x_coord += spacing
-        return np.array(coords)
-
     def build_hex_coords(self, x, y, width, height, spacing) -> np.ndarray:
         """
         Generate coordinates for a hex grid of particles
@@ -78,14 +58,23 @@ class Simulation:
         Returns a 2D numpy array of coordinates of rows of particles
         hexagonally offset
         """
-        coords = []
-        current_y_coord = y
-        while current_y_coord <= height + y:
-            rows = self.create_2_rows_of_coords(
-                x, current_y_coord, width, spacing)
-            coords.append(rows)
-            current_y_coord += np.sqrt(3) * spacing
-        return np.vstack(coords)
+        # compute column and row spacing
+        spacing_x = spacing
+        spacing_y = spacing * np.sqrt(3)/2
+
+        # generate list of points
+        x_grid = np.arange(x+self.particle_radius,
+                           width-self.particle_radius, spacing_x)
+        y_grid = np.arange(y+self.particle_radius,
+                           height-self.particle_radius, spacing_y)
+        x_coords, y_coords = np.meshgrid(
+            x_grid, y_grid, sparse=False, indexing='xy')
+
+        # offset every other row
+        x_coords[::2, :] += spacing/2
+
+        coords = np.vstack((x_coords.flatten(), y_coords.flatten())).T
+        return coords
 
     def generate_brownian_velocity(self, brownian_amplitude) -> np.ndarray:
         """Generates brownian motion velocity vector components"""
@@ -228,6 +217,34 @@ class Simulation:
                     # add particle positions
                     self.particles[index_pair[0], 0:2] += pos_offset_1
                     self.particles[index_pair[1], 0:2] += pos_offset_2
+
+                # check for collisions with the walls
+                # TODO: consolidate these into unions and np.clip
+                collisions_x_min = np.where(
+                    particle_positions[:, 0] < self.particle_radius)
+                collisions_x_max = np.where(
+                    particle_positions[:, 0] > self.size - self.particle_radius)
+
+                collisions_y_min = np.where(
+                    particle_positions[:, 1] < self.particle_radius)
+                collisions_y_max = np.where(
+                    particle_positions[:, 1] > self.size - self.particle_radius)
+
+                # reverse the velocities of particles that hit the walls
+                self.particles[collisions_x_min, 2] *= -1
+                self.particles[collisions_x_max, 2] *= -1
+                self.particles[collisions_y_min, 3] *= -1
+                self.particles[collisions_y_max, 3] *= -1
+
+                # offset particle positions so they're not intersecting walls
+                self.particles[collisions_x_min, 0] = self.particle_radius
+                self.particles[collisions_x_max, 0] = \
+                    self.size - self.particle_radius
+
+                self.particles[collisions_y_min, 1] = self.particle_radius
+                self.particles[collisions_y_max, 1] = \
+                    self.size - self.particle_radius
+
             # TODO: this currently only checks if particle centers are in the same grid
             # square and misses many intersections when they are not.
             elif self.collision_check_mode == "bounding_boxes":
