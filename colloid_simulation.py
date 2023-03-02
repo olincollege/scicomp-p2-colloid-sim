@@ -1,5 +1,6 @@
 from collections import defaultdict
 from itertools import combinations
+from time import time
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import pdist, squareform
@@ -75,7 +76,7 @@ class Simulation:
         Generate coordinates for a hex grid of particles
 
         Returns a 2D numpy array of coordinates of rows of particles
-        hexagonally offset 
+        hexagonally offset
         """
         coords = []
         current_y_coord = y
@@ -133,6 +134,9 @@ class Simulation:
         for coord in hex_coords:
             self.add_particle(coord, self.particle_mass, self.particle_radius)
             self.num_particles += 1
+
+        # start fps counter for initial run
+        frame_time_start = time()
 
         # continually loop to run simulation
         while True:
@@ -321,6 +325,16 @@ class Simulation:
                 self.ax.scatter(
                     binned_particle_pos[:, 0], binned_particle_pos[:, 1], marker_size, color='g', marker='x')
 
+            # compute and show FPS
+            frame_time_end = time()
+            fps = 1 / (frame_time_end - frame_time_start)
+            text_fps = f'FPS: {fps:.1f}'
+            text_bbox = dict(facecolor='white', edgecolor="white")
+            self.fig.text(.12, .025, text_fps, fontsize=10, bbox=text_bbox)
+
             # draw on canvas
             self.fig.canvas.draw()
             self.fig.canvas.flush_events()
+
+            # restart fps timer
+            frame_time_start = time()
