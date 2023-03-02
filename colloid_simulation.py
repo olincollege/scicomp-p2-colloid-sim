@@ -16,7 +16,8 @@ class Simulation:
         self.particle_radius = config["particle_radius"]
         self.particle_mass = config["particle_mass"]
         self.hydrodynamic_drag = config["hydrodynamic_drag"]
-        self.brownian_amplitude = config["brownian_amplitude"]
+        self.brownian_amplitude_initial = config["brownian_amplitude_initial"]
+        self.brownian_amplitude_continuous = config["brownian_amplitude_continuous"]
         self.timestep = config["timestep"]
         self.collision_check_mode = config["collision_check_mode"]
         self.show_grid = config["show_grid"]
@@ -109,11 +110,11 @@ class Simulation:
         # update particle positions
         self.particles = self.particles + d_pos
 
-    def apply_brownian_velocity(self) -> None:
+    def apply_brownian_velocity(self, brownian_amplitude) -> None:
         """Applies brownian velocity component to particles"""
 
         self.particles[:, 2:4] += self.generate_brownian_velocity(
-            self.brownian_amplitude)
+            brownian_amplitude)
 
     def apply_hydrodynamic_drag(self) -> None:
         """Reduces particle velocity by a set multiplier"""
@@ -132,15 +133,19 @@ class Simulation:
         # add first positions of particles to history store
         self.particle_position_history = [self.particles[:, 0:2]]
 
+        # apply initial random particle direction
+        self.apply_brownian_velocity(self.brownian_amplitude_initial)
+
         # start fps counter for initial run
         frame_time_start = time()
 
-        # continually loop to run simulation
+        # continuously loop to run simulation
         while True:
             ### POSITION CALCULATIONS ###
 
+            # apply kinematics continuously
             self.apply_hydrodynamic_drag()
-            self.apply_brownian_velocity()
+            self.apply_brownian_velocity(self.brownian_amplitude_continuous)
 
             # update particles based on kinematics alone
             self.update_particles()

@@ -6,12 +6,13 @@ config = {
     "particle_concentration": 2.5,
     "particle_radius": 1.,
     "particle_mass": 1.,
-    "hydrodynamic_drag": .8,
-    "brownian_amplitude": .4,
+    "hydrodynamic_drag": 0.,
+    "brownian_amplitude_initial": 1,
+    "brownian_amplitude_continuous": 0,
     "timestep": .1,
     "collision_check_mode": 'spatial_distance',  # or "bounding_boxes"
-    "show_grid": True,
-    "show_collisions": True
+    "show_grid": False,  # requires significant render time
+    "show_collisions": False
 }
 
 # create and run simulation
