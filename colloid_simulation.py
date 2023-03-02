@@ -22,10 +22,15 @@ class Simulation:
         self.show_grid = config["show_grid"]
         self.show_collisions = config["show_collisions"]
 
+        self.frame_count = 0
         self.particles = None
+        self.particle_position_history = None
+        self.history_max_steps = 500
         self.num_particles = 0
         self.bins = np.arange(
             0, self.size, self.particle_radius * 2)
+
+        self.particle_to_show_path_index = None
 
         plt.ion()
 
@@ -64,9 +69,9 @@ class Simulation:
 
         # generate list of points
         x_grid = np.arange(x+self.particle_radius,
-                           width-self.particle_radius, spacing_x)
+                           width - self.particle_radius, spacing_x)
         y_grid = np.arange(y+self.particle_radius,
-                           height-self.particle_radius, spacing_y)
+                           height - self.particle_radius, spacing_y)
         x_coords, y_coords = np.meshgrid(
             x_grid, y_grid, sparse=False, indexing='xy')
 
@@ -123,6 +128,9 @@ class Simulation:
         for coord in hex_coords:
             self.add_particle(coord, self.particle_mass, self.particle_radius)
             self.num_particles += 1
+
+        # add first positions of particles to history store
+        self.particle_position_history = [self.particles[:, 0:2]]
 
         # start fps counter for initial run
         frame_time_start = time()
@@ -304,6 +312,16 @@ class Simulation:
                 # set flag if particles might be colliding
                 self.particles[all_colliding_particle_indices, 6] = 1
 
+            # store history of particles
+            if self.frame_count % 2 == 0:
+                last_particle_positions = self.particles[:, 0:2]
+                self.particle_position_history = np.concatenate(
+                    (self.particle_position_history, [last_particle_positions]))
+
+            # only keep a set amount as to not fill memory
+            if self.particle_position_history.shape[0] > self.history_max_steps - 1:
+                self.particle_position_history = self.particle_position_history[1:]
+
             ### PLOTTING ###
 
             # clear graph and set limits
@@ -324,19 +342,31 @@ class Simulation:
             # calculate marker size on grid to match particle radius
             marker_radius = self.ax.transData.transform(
                 [self.particle_radius, 0])[0] - self.ax.transData.transform([0, 0])[0]
-            # this calculation approximates the
             marker_size = .5 * marker_radius**2
+
+            # select particle index when it's clicked
+            def onpick(event):
+                ind = event.ind
+                self.particle_to_show_path_index = ind[0]
 
             # set particle color if it's being checked for collisions
             if self.show_collisions:
                 particle_color = [
                     'orange' if state == 1 else 'blue' for state in self.particles[:, 6]]
             else:
-                particle_color = 'b'
+                particle_color = ['b'] * self.num_particles
+
+            # plot particle past positions
+            if self.particle_to_show_path_index is not None:
+                particle_to_show_path = self.particle_position_history[:,
+                                                                       self.particle_to_show_path_index, :]
+                self.ax.plot(
+                    particle_to_show_path[:, 0], particle_to_show_path[:, 1], color='r', alpha=.5)
+                particle_color[self.particle_to_show_path_index] = 'r'
 
             # plot particles
             self.ax.scatter(x, y, marker_size, color=particle_color,
-                            alpha=.25, edgecolors='none')
+                            alpha=.5, edgecolors='none', picker=True)
 
             # plot binned particles
             if self.collision_check_mode == "bounding_boxes":
@@ -350,9 +380,12 @@ class Simulation:
             text_fps = self.fig.text(.12, .025, text_fps_string, fontsize=10)
 
             # draw on canvas
+            self.fig.canvas.mpl_connect('pick_event', onpick)
             self.fig.canvas.draw()
             self.fig.canvas.flush_events()
 
             # reset fps timer
             frame_time_start = time()
             text_fps.remove()
+
+            self.frame_count += 1
