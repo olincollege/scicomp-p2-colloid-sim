@@ -13,14 +13,16 @@ In `main.py`, you'll find a few different parameters defined in the `config` obj
 # define simulation parameters
 config = {
     "size": 50,
-    "num_particles": 50,
+    "particle_concentration": 2.5,
     "particle_radius": 1.,
-    "particle_distribution": "random",
-    "hydrodynamic_drag": .9, # 1.0 is no drag
-    "brownian_amplitude": .4,
+    "particle_mass": 1.,
+    "hydrodynamic_drag": 0.,
+    "brownian_amplitude_initial": 1,
+    "brownian_amplitude_continuous": 0,
     "timestep": .1,
-    "collision_check_mode": 'bounding_boxes',  # or spatial_distance
-    "show_grid": True
+    "show_grid": False,  # requires significant render time
+    "show_collisions": True,
+    "show_velocities": True
 }
 ```
 
