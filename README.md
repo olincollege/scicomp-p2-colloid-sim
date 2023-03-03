@@ -34,3 +34,10 @@ To start the simulation as configured, run:
 ```python main.py```
 
 This opens a matplotlib window. Closing this will terminate the simulation and return you to your prompt.
+
+Here's a couple of examples of output:
+
+![](imgs/demo-1.png)
+
+
+![](imgs/demo-2.png)
