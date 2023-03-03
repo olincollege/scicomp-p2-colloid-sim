@@ -12,7 +12,8 @@ config = {
     "timestep": .1,
     "collision_check_mode": 'spatial_distance',  # or "bounding_boxes"
     "show_grid": False,  # requires significant render time
-    "show_collisions": False
+    "show_collisions": True,
+    "show_velocities": True
 }
 
 # create and run simulation

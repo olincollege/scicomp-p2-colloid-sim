@@ -4,6 +4,7 @@ from time import time
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import pdist, squareform
+from matplotlib.cm import get_cmap
 
 
 class Simulation:
@@ -22,6 +23,7 @@ class Simulation:
         self.collision_check_mode = config["collision_check_mode"]
         self.show_grid = config["show_grid"]
         self.show_collisions = config["show_collisions"]
+        self.show_velocities = config["show_velocities"]
 
         self.frame_count = 0
         self.particles = None
@@ -32,6 +34,7 @@ class Simulation:
             0, self.size, self.particle_radius * 2)
 
         self.particle_to_show_path_index = None
+        self.cmap_velocity = get_cmap('coolwarm')
 
         plt.ion()
 
@@ -317,16 +320,6 @@ class Simulation:
                 # set flag if particles might be colliding
                 self.particles[all_colliding_particle_indices, 6] = 1
 
-            # store history of particles
-            if self.frame_count % 2 == 0:
-                last_particle_positions = self.particles[:, 0:2]
-                self.particle_position_history = np.concatenate(
-                    (self.particle_position_history, [last_particle_positions]))
-
-            # only keep a set amount as to not fill memory
-            if self.particle_position_history.shape[0] > self.history_max_steps - 1:
-                self.particle_position_history = self.particle_position_history[1:]
-
             ### PLOTTING ###
 
             # clear graph and set limits
@@ -340,7 +333,7 @@ class Simulation:
                 self.ax.set_xticks(self.bins+self.particle_radius, minor=True)
                 self.ax.grid(which='minor', linestyle='--', linewidth=0.5)
 
-            # get particles' positions and radii
+            # get particles' positions
             x = self.particles[:, 0]
             y = self.particles[:, 1]
 
@@ -354,24 +347,51 @@ class Simulation:
                 ind = event.ind
                 self.particle_to_show_path_index = ind[0]
 
+            # color code particles by velocity
+            if self.show_velocities:
+                vels = self.particles[:, 2:4]
+                mags = np.sqrt(vels[:, 0]**2 + vels[:, 1]**2)
+                particle_color = self.cmap_velocity(mags)
+                particle_color[:, 3] = .5  # set alpha
+            else:
+                # else set to blue
+                blue = [0., 0., 1., .5]
+                particle_color = np.tile(blue, (self.num_particles, 1))
+
+            # store history of particles
+            if self.frame_count % 2 == 0:
+                last_particle_positions = self.particles[:, 0:2]
+                self.particle_position_history = np.concatenate(
+                    (self.particle_position_history, [last_particle_positions]))
+
             # set particle color if it's being checked for collisions
             if self.show_collisions:
-                particle_color = [
-                    'orange' if state == 1 else 'blue' for state in self.particles[:, 6]]
-            else:
-                particle_color = ['b'] * self.num_particles
+                colliding_particle_indices = np.where(self.particles[:, 6])
+                red = [1., 0., 0., .5]
+                particle_color[colliding_particle_indices] = red
 
-            # plot particle past positions
+            # only keep a set amount as to not fill memory
+            if self.particle_position_history.shape[0] > self.history_max_steps - 1:
+                self.particle_position_history = self.particle_position_history[1:]
+
+            # plot past positions of clicked particle as line and color in that particle
             if self.particle_to_show_path_index is not None:
+                # set opacity of clicked particle marker to 100%
+                particle_color[self.particle_to_show_path_index] = [
+                    0., 0., 0., .5]
                 particle_to_show_path = self.particle_position_history[:,
                                                                        self.particle_to_show_path_index, :]
+
                 self.ax.plot(
-                    particle_to_show_path[:, 0], particle_to_show_path[:, 1], color='r', alpha=.5)
-                particle_color[self.particle_to_show_path_index] = 'r'
+                    particle_to_show_path[:, 0],
+                    particle_to_show_path[:, 1],
+                    color='black',
+                    alpha=.75
+                )
 
             # plot particles
             self.ax.scatter(x, y, marker_size, color=particle_color,
-                            alpha=.5, edgecolors='none', picker=True)
+                            edgecolors='none', picker=True)
 
             # plot binned particles
             if self.collision_check_mode == "bounding_boxes":
