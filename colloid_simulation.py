@@ -82,6 +82,14 @@ class Simulation:
         coords = np.vstack((x_coords.flatten(), y_coords.flatten())).T
         return coords
 
+    def generate_particle_grid(self) -> None:
+        """Add particles in a hexagon grid pattern"""
+        hex_coords = self.build_hex_coords(
+            0, 0, self.size, self.size, self.particle_concentration)
+        for coord in hex_coords:
+            self.add_particle(coord, self.particle_mass, self.particle_radius)
+            self.num_particles += 1
+
     def generate_brownian_velocity(self, brownian_amplitude) -> np.ndarray:
         """Generates brownian motion velocity vector components"""
         # get number of particles
@@ -108,6 +116,110 @@ class Simulation:
         # update particle positions
         self.particles[:, 0:2] += d_pos
 
+    def resolve_collisions(self) -> None:
+        """Resolve all particle collisions"""
+        # reset flag specifying if particles might be colliding
+        self.particles[:, 6] = 0
+
+        # calculate pairwise distances with no repeats
+        particle_positions = self.particles[:, 0:2]
+        particle_distances = pdist(
+            particle_positions)
+
+        # convert to square form matrix for ease of indexing pairs
+        particle_distances = squareform(particle_distances)
+
+        # exclude particles distances from themselves (zero) by setting
+        # their own distance to greater than the collision threshold
+        particle_distances += np.identity(self.num_particles) * \
+            (2 * self.particle_radius + 1)
+
+        # check which particles are overlapping
+        particle_bitmask = particle_distances <= (
+            2 * self.particle_radius)
+
+        # generate pairs based on truthy pairs of values
+        particles_indices_pairs_to_check = np.transpose(
+            np.nonzero(particle_bitmask))
+
+        particles_indices_pairs_to_check = [
+            tuple(sorted(pair)) for pair in particles_indices_pairs_to_check]
+        particles_indices_pairs_to_check = list(set(
+            particles_indices_pairs_to_check))
+
+        # generate list of all potentially colliding particles
+        all_colliding_particle_indices = [
+            i for sublist in particles_indices_pairs_to_check for i in sublist]
+        all_colliding_particle_indices = list(
+            set(all_colliding_particle_indices))
+
+        # set flag if particles might be colliding for visualization
+        self.particles[all_colliding_particle_indices, 6] = 1
+
+        # compute collision for sets of particles that are close enough to have them
+        for index_pair in particles_indices_pairs_to_check:
+            particle_1 = self.particles[index_pair[0], :]
+            particle_2 = self.particles[index_pair[1], :]
+
+            # get necessary attributes for collision computation
+            pos_1 = particle_1[0:2]
+            pos_2 = particle_2[0:2]
+            vel_1 = particle_1[2:4]
+            vel_2 = particle_2[2:4]
+            mass_1 = particle_1[4]
+            mass_2 = particle_2[4]
+
+            # calculate the new velocities after the collision
+            vel_1_new = vel_1 - 2 * mass_2 / (mass_1 + mass_2) * np.dot(
+                vel_1 - vel_2, pos_1 - pos_2) / np.linalg.norm(pos_1 - pos_2) ** 2 * (pos_1 - pos_2)
+            vel_2_new = vel_2 - 2 * mass_1 / (mass_1 + mass_2) * np.dot(
+                vel_2 - vel_1, pos_2 - pos_1) / np.linalg.norm(pos_2 - pos_1) ** 2 * (pos_2 - pos_1)
+
+            # update particle velocities
+            self.particles[index_pair[0], 2:4] = vel_1_new
+            self.particles[index_pair[1], 2:4] = vel_2_new
+
+            # offset particle positions so they're not overlapping in the next timestep
+            # get distance required to unoverlap
+            offset_dist = abs(np.linalg.norm(pos_1 - pos_2) -
+                              2 * self.particle_radius)
+
+            # compute direction in which to separate particles
+            direction = pos_1 - pos_2
+
+            # generate amount to offset particle positions by
+            pos_offset_1 = direction * offset_dist / 2
+            pos_offset_2 = direction * -offset_dist / 2
+
+            # add particle positions
+            self.particles[index_pair[0], 0:2] += pos_offset_1
+            self.particles[index_pair[1], 0:2] += pos_offset_2
+
+        # check for collisions with the walls
+        collisions_x_min = np.where(
+            particle_positions[:, 0] < self.particle_radius)
+        collisions_x_max = np.where(
+            particle_positions[:, 0] > self.size - self.particle_radius)
+        collisions_y_min = np.where(
+            particle_positions[:, 1] < self.particle_radius)
+        collisions_y_max = np.where(
+            particle_positions[:, 1] > self.size - self.particle_radius)
+
+        # reverse the velocities of particles that hit the walls
+        self.particles[collisions_x_min, 2] *= -1
+        self.particles[collisions_x_max, 2] *= -1
+        self.particles[collisions_y_min, 3] *= -1
+        self.particles[collisions_y_max, 3] *= -1
+
+        # offset particle positions so they're not intersecting walls
+        self.particles[collisions_x_min, 0] = self.particle_radius
+        self.particles[collisions_x_max, 0] = \
+            self.size - self.particle_radius
+
+        self.particles[collisions_y_min, 1] = self.particle_radius
+        self.particles[collisions_y_max, 1] = \
+            self.size - self.particle_radius
+
     def apply_brownian_velocity(self, brownian_amplitude) -> None:
         """Applies brownian velocity component to particles"""
 
@@ -119,14 +231,23 @@ class Simulation:
         self.particles[:,
                        2:4] *= np.clip(1 - self.hydrodynamic_drag, 0., 1.)
 
+    def clear_graph(self) -> None:
+        """Clear graph and set limits"""
+        self.ax.clear()
+        self.ax.set_xlim([0, self.size])
+        self.ax.set_ylim([0, self.size])
+
+    def compute_marker_size(self) -> int:
+        """Calculate marker size on grid to match particle radius"""
+        marker_radius = self.ax.transData.transform(
+            [self.particle_radius, 0])[0] - self.ax.transData.transform([0, 0])[0]
+        marker_size = .5 * marker_radius**2
+        return marker_size
+
     def run(self) -> None:
         """Run and plot simulation"""
-        # add particles in a hexagon grid pattern
-        hex_coords = self.build_hex_coords(
-            0, 0, self.size, self.size, self.particle_concentration)
-        for coord in hex_coords:
-            self.add_particle(coord, self.particle_mass, self.particle_radius)
-            self.num_particles += 1
+
+        self.generate_particle_grid()
 
         # add first positions of particles to history store
         self.particle_position_history = [self.particles[:, 0:2]]
@@ -148,134 +269,17 @@ class Simulation:
             # update particles based on kinematics alone
             self.update_particles()
 
-            # reset flag specifying if particles might be colliding
-            self.particles[:, 6] = 0
-
-            # calculate pairwise distances with no repeats
-            particle_positions = self.particles[:, 0:2]
-            particle_distances = pdist(
-                particle_positions)
-
-            # convert to square form matrix for ease of indexing pairs
-            particle_distances = squareform(particle_distances)
-
-            # exclude particles distances from themselves (zero) by setting
-            # their own distance to greater than the collision threshold
-            particle_distances += np.identity(self.num_particles) * \
-                (2 * self.particle_radius + 1)
-
-            # check which particles are overlapping
-            particle_bitmask = particle_distances <= (
-                2 * self.particle_radius)
-
-            # generate pairs based on truthy pairs of values
-            particles_indices_pairs_to_check = np.transpose(
-                np.nonzero(particle_bitmask))
-
-            particles_indices_pairs_to_check = [
-                tuple(sorted(pair)) for pair in particles_indices_pairs_to_check]
-            particles_indices_pairs_to_check = list(set(
-                particles_indices_pairs_to_check))
-
-            # generate list of all potentially colliding particles
-            all_colliding_particle_indices = [
-                i for sublist in particles_indices_pairs_to_check for i in sublist]
-            all_colliding_particle_indices = list(
-                set(all_colliding_particle_indices))
-
-            # set flag if particles might be colliding for visualization
-            self.particles[all_colliding_particle_indices, 6] = 1
-
-            # compute collision for sets of particles that are close enough to have them
-            for index_pair in particles_indices_pairs_to_check:
-                particle_1 = self.particles[index_pair[0], :]
-                particle_2 = self.particles[index_pair[1], :]
-
-                # get necessary attributes for collision computation
-                pos_1 = particle_1[0:2]
-                pos_2 = particle_2[0:2]
-                vel_1 = particle_1[2:4]
-                vel_2 = particle_2[2:4]
-                mass_1 = particle_1[4]
-                mass_2 = particle_2[4]
-
-                # calculate the new velocities after the collision
-                vel_1_new = vel_1 - 2 * mass_2 / (mass_1 + mass_2) * np.dot(
-                    vel_1 - vel_2, pos_1 - pos_2) / np.linalg.norm(pos_1 - pos_2) ** 2 * (pos_1 - pos_2)
-                vel_2_new = vel_2 - 2 * mass_1 / (mass_1 + mass_2) * np.dot(
-                    vel_2 - vel_1, pos_2 - pos_1) / np.linalg.norm(pos_2 - pos_1) ** 2 * (pos_2 - pos_1)
-
-                # update particle velocities
-                self.particles[index_pair[0], 2:4] = vel_1_new
-                self.particles[index_pair[1], 2:4] = vel_2_new
-
-                # offset particle positions so they're not overlapping in the next timestep
-                # get distance required to unoverlap
-                offset_dist = abs(np.linalg.norm(pos_1 - pos_2) -
-                                  2 * self.particle_radius)
-
-                # compute direction in which to separate particles
-                direction = pos_1 - pos_2
-
-                # generate amount to offset particle positions by
-                pos_offset_1 = direction * offset_dist / 2
-                pos_offset_2 = direction * -offset_dist / 2
-
-                # add particle positions
-                self.particles[index_pair[0], 0:2] += pos_offset_1
-                self.particles[index_pair[1], 0:2] += pos_offset_2
-
-            # check for collisions with the walls
-            collisions_x_min = np.where(
-                particle_positions[:, 0] < self.particle_radius)
-            collisions_x_max = np.where(
-                particle_positions[:, 0] > self.size - self.particle_radius)
-            collisions_y_min = np.where(
-                particle_positions[:, 1] < self.particle_radius)
-            collisions_y_max = np.where(
-                particle_positions[:, 1] > self.size - self.particle_radius)
-
-            # reverse the velocities of particles that hit the walls
-            self.particles[collisions_x_min, 2] *= -1
-            self.particles[collisions_x_max, 2] *= -1
-            self.particles[collisions_y_min, 3] *= -1
-            self.particles[collisions_y_max, 3] *= -1
-
-            # offset particle positions so they're not intersecting walls
-            self.particles[collisions_x_min, 0] = self.particle_radius
-            self.particles[collisions_x_max, 0] = \
-                self.size - self.particle_radius
-
-            self.particles[collisions_y_min, 1] = self.particle_radius
-            self.particles[collisions_y_max, 1] = \
-                self.size - self.particle_radius
+            # resolve collisions
+            self.resolve_collisions()
 
             ### PLOTTING ###
+            self.clear_graph()
 
-            # clear graph and set limits
-            self.ax.clear()
-            self.ax.set_xlim([0, self.size])
-            self.ax.set_ylim([0, self.size])
-
-            # plot gridlines corresponding to particle bins
-            if self.show_grid:
-                self.ax.set_yticks(self.bins+self.particle_radius, minor=True)
-                self.ax.set_xticks(self.bins+self.particle_radius, minor=True)
-                self.ax.grid(which='minor', linestyle='--', linewidth=0.5)
+            marker_size = self.compute_marker_size()
 
             # get particles' positions
             x = self.particles[:, 0]
             y = self.particles[:, 1]
-
-            # calculate marker size on grid to match particle radius
-            marker_radius = self.ax.transData.transform(
-                [self.particle_radius, 0])[0] - self.ax.transData.transform([0, 0])[0]
-            marker_size = .5 * marker_radius**2
-
-            # select particle index when it's clicked
-            def onpick(event):
-                ind = event.ind
-                self.particle_to_show_path_index = ind[0]
 
             # color code particles by velocity
             if self.show_velocities:
@@ -304,6 +308,11 @@ class Simulation:
             if self.particle_position_history.shape[0] > self.history_max_steps - 1:
                 self.particle_position_history = self.particle_position_history[1:]
 
+            # select particle index when it's clicked
+            def onpick(event):
+                ind = event.ind
+                self.particle_to_show_path_index = ind[0]
+
             # plot past positions of clicked particle as line and color in that particle
             if self.particle_to_show_path_index is not None:
                 # set opacity of clicked particle marker to 100%
@@ -320,7 +329,8 @@ class Simulation:
                 )
 
             # plot particles
-            self.ax.scatter(x, y, marker_size, color=particle_color,
+            self.ax.scatter(x, y,
+                            s=marker_size, color=particle_color,
                             edgecolors='none', picker=True)
 
             # compute and show FPS
