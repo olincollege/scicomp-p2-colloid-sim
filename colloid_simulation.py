@@ -339,6 +339,17 @@ class Simulation:
             text_fps_string = f'FPS: {fps:.1f}'
             text_fps = self.fig.text(.12, .025, text_fps_string, fontsize=10)
 
+            # show number of particles
+            text_num_particles_string = f'Particles: {self.num_particles}'
+            text_num_particles = self.fig.text(.4, .025,
+                                               text_num_particles_string, fontsize=10)
+
+            # show number of current collisions
+            num_collisions = np.count_nonzero(self.particles[:, 6])
+            text_num_collisions_string = f'Collisions: {num_collisions}'
+            text_num_collisions = self.fig.text(.68, .025,
+                                                text_num_collisions_string, fontsize=10)
+
             # draw on canvas
             self.fig.canvas.mpl_connect('pick_event', onpick)
             self.fig.canvas.draw()
@@ -346,6 +357,10 @@ class Simulation:
 
             # reset fps timer
             frame_time_start = time()
+
+            # remove old text
             text_fps.remove()
+            text_num_particles.remove()
+            text_num_collisions.remove()
 
             self.frame_count += 1
