@@ -1,6 +1,8 @@
 # Colloid Simulation
 A simple simulation of colloidal substances, modeled through the collisions of hard spheres colliding in a solvent.
 
+![](imgs/colloids-demo-animated.gif)
+
 ## Setup
 You'll need at least Python 3.9 and a few packages to run this simulation. To install them, run:
 
