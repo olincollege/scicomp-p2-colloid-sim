@@ -18,7 +18,7 @@ config = {
     "particle_concentration": 2.5,          # this controls particle spacing, must be twice particle radius
     "particle_radius": 1.,                  # radius of particles in simulation units
     "particle_mass": 1.,                    # mass, has no effect since all particles are the same
-    "hydrodynamic_drag": 0.,                # multiplier for reduction in velocity over time
+    "particle_drag": 0.,                    # multiplier for reduction in velocity at each time step
     "brownian_amplitude_initial": 1,        # magnitude of initial random velocity
     "brownian_amplitude_continuous": 0,     # adds brownian noise to particles at each step as in a gas
     "timestep": .1,                         # higher values will give less accurate results

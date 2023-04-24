@@ -14,7 +14,7 @@ class Simulation:
         self.particle_concentration = config["particle_concentration"]
         self.particle_radius = config["particle_radius"]
         self.particle_mass = config["particle_mass"]
-        self.hydrodynamic_drag = config["hydrodynamic_drag"]
+        self.particle_drag = config["particle_drag"]
         self.brownian_amplitude_initial = config["brownian_amplitude_initial"]
         self.brownian_amplitude_continuous = config["brownian_amplitude_continuous"]
         self.timestep = config["timestep"]
@@ -224,10 +224,10 @@ class Simulation:
         self.particles[:, 2:4] += self.generate_brownian_velocity(
             brownian_amplitude)
 
-    def apply_hydrodynamic_drag(self) -> None:
+    def apply_particle_drag(self) -> None:
         """Reduces particle velocity by a set multiplier"""
         self.particles[:,
-                       2: 4] *= np.clip(1 - self.hydrodynamic_drag, 0., 1.)
+                       2: 4] *= np.clip(1 - self.particle_drag, 0., 1.)
 
     def clear_graph(self) -> None:
         """Clear graph and set limits"""
@@ -261,7 +261,7 @@ class Simulation:
             ### POSITION CALCULATIONS ###
 
             # apply kinematics continuously
-            self.apply_hydrodynamic_drag()
+            self.apply_particle_drag()
             self.apply_brownian_velocity(self.brownian_amplitude_continuous)
 
             # update particles based on kinematics alone
