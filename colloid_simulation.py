@@ -97,7 +97,7 @@ class Simulation:
 
         # compute random direction and magnitude
         d_headings = np.random.rand(n_particles,) * 2 * np.pi
-        d_magnitude = np.random.rand(n_particles,) * brownian_amplitude
+        d_magnitude = np.random.normal(size=n_particles,) * brownian_amplitude
 
         # convert to cartesian delta velocity
         d_vel_x = d_magnitude * np.cos(d_headings)

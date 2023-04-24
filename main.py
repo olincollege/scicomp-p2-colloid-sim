@@ -7,7 +7,7 @@ config = {
     "particle_radius": 1.,
     "particle_mass": 1.,
     "particle_drag": 0.,
-    "brownian_amplitude_initial": 1,
+    "brownian_amplitude_initial": 0.5,
     "brownian_amplitude_continuous": 0,
     "timestep": .1,
     "show_grid": False,  # requires significant render time
