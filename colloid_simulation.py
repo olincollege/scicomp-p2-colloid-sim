@@ -37,8 +37,8 @@ class Simulation:
 
         # force square aspect ratio so plot markers are accurate to
         # particle geometry
-        self.fig = plt.figure(figsize=(5, 5))
-        self.ax = self.fig.add_subplot(111)
+        self.fig = plt.figure(figsize=(5, 5), num="Particles Simulation")
+        self.ax = self.fig.add_subplot(111,)
 
     def add_particle(self, pos: tuple, mass: float, radius: float) -> None:
         """
@@ -213,12 +213,10 @@ class Simulation:
 
         # offset particle positions so they're not intersecting walls
         self.particles[collisions_x_min, 0] = self.particle_radius
-        self.particles[collisions_x_max, 0] = \
-            self.size - self.particle_radius
+        self.particles[collisions_x_max, 0] = self.size - self.particle_radius
 
         self.particles[collisions_y_min, 1] = self.particle_radius
-        self.particles[collisions_y_max, 1] = \
-            self.size - self.particle_radius
+        self.particles[collisions_y_max, 1] = self.size - self.particle_radius
 
     def apply_brownian_velocity(self, brownian_amplitude) -> None:
         """Applies brownian velocity component to particles"""
@@ -229,7 +227,7 @@ class Simulation:
     def apply_hydrodynamic_drag(self) -> None:
         """Reduces particle velocity by a set multiplier"""
         self.particles[:,
-                       2:4] *= np.clip(1 - self.hydrodynamic_drag, 0., 1.)
+                       2: 4] *= np.clip(1 - self.hydrodynamic_drag, 0., 1.)
 
     def clear_graph(self) -> None:
         """Clear graph and set limits"""
